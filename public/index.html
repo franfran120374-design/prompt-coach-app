@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Coach</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f0f0f;--card:#1a1a2e;--accent:#e94560;--accent2:#0f3460;--text:#eee;--muted:#888;--green:#00c853;--border:#333}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px;max-width:600px;margin:0 auto}
+h1{text-align:center;font-size:1.8rem;margin:16px 0 4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:20px}
+.budget-bar{background:var(--card);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid var(--border)}
+.budget-bar h3{font-size:.8rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.budget-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:.85rem}
+.budget-row .label{color:var(--muted)}
+.budget-row .value{font-weight:700}
+.budget-row .value.green{color:var(--green)}
+.budget-row .value.warn{color:#ffa000}
+.budget-row .value.danger{color:var(--accent)}
+.progress{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:3px;transition:width .5s}
+.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid var(--border)}
+.card h2{font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-size:.95rem;resize:vertical;min-height:100px;font-family:inherit}
+textarea:focus{outline:none;border-color:var(--accent)}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.result{margin-top:12px;display:none}
+.result.show{display:block}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600;text-transform:uppercase}
+.tag.dev{background:#1b5e20;color:#a5d6a7}
+.tag.writing{background:#4a148c;color:#ce93d8}
+.tag.analysis{background:#e65100;color:#ffcc80}
+.tag.general{background:#37474f;color:#b0bec5}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.metric{background:var(--bg);border-radius:8px;padding:10px;text-align:center}
+.metric .num{font-size:1.3rem;font-weight:700}
+.metric .lbl{font-size:.7rem;color:var(--muted);margin-top:2px}
+.metric .num.green{color:var(--green)}
+.metric .num.accent{color:var(--accent)}
+.output-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.85rem;white-space:pre-wrap;line-height:1.5;max-height:300px;overflow-y:auto}
+.output-box:empty::before{content:'Le résultat apparaîtra ici...';color:var(--muted)}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{flex:1;padding:10px;border:none;border-radius:8px;background:var(--bg);color:var(--muted);font-size:.85rem;cursor:pointer;border:1px solid var(--border);transition:all .2s}
+.tab.active{background:var(--accent2);color:var(--text);border-color:var(--accent2)}
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.quick-btn{padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:.8rem;cursor:pointer;transition:all .2s}
+.quick-btn:hover{border-color:var(--accent);background:var(--card)}
+.footer{text-align:center;color:var(--muted);font-size:.7rem;margin-top:24px;padding-bottom:20px}
+.copy-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:.75rem;cursor:pointer;margin-top:8px}
+.copy-btn:hover{border-color:var(--accent);color:var(--text)}
+@media(max-width:400px){body{padding:10px}h1{font-size:1.5rem}.metrics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>Prompt Coach</h1>
+<p class="subtitle">Optimisez vos prompts, economisez vos tokens</p>
+
+<div class="budget-bar">
+  <h3>Budget mensuel</h3>
+  <div class="budget-row"><span class="label">Budget</span><span class="value">21,00 €</span></div>
+  <div class="budget-row"><span class="label">Utilise</span><span class="value green" id="usedCost">0,00 €</span></div>
+  <div class="budget-row"><span class="label">Reste</span><span class="value" id="remainCost">21,00 €</span></div>
+  <div class="progress"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('optimize')">Optimiser</button>
+  <button class="tab" onclick="switchTab('calculator')">Calculer</button>
+</div>
+
+<div id="tab-optimize" class="card">
+  <h2>Votre prompt</h2>
+  <textarea id="promptInput" placeholder="Ex: Je voudrais creer une API REST avec Node.js et Express pour gerer des utilisateurs..."></textarea>
+  <div class="quick-actions">
+    <button class="quick-btn" onclick="fillTemplate('dev')">Dev / Code</button>
+    <button class="quick-btn" onclick="fillTemplate('writing')">Redaction</button>
+    <button class="quick-btn" onclick="fillTemplate('analysis')">Analyse</button>
+    <button class="quick-btn" onclick="fillTemplate('general')">General</button>
+  </div>
+  <br>
+  <button class="btn btn-primary" onclick="optimize()">Optimiser le prompt</button>
+  <div class="result" id="optimizeResult">
+    <div class="result-header">
+      <span class="tag" id="categoryTag">dev</span>
+      <span style="font-size:.8rem;color:var(--green)" id="savingsText">-0% tokens</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="num accent" id="origTokens">0</div><div class="lbl">Tokens original</div></div>
+      <div class="metric"><div class="num green" id="optTokens">0</div><div class="lbl">Tokens optimise</div></div>
+      <div class="metric"><div class="num" id="origCost">0€</div><div class="lbl">Cout input</div></div>
+      <div class="metric"><div class="num green" id="savedCost">0€</div><div class="lbl">Economie</div></div>
+    </div>
+    <h2 style="font-size:.9rem">Prompt optimise</h2>
+    <div class="output-box" id="optimizedOutput"></div>
+    <button class="copy-btn" onclick="copyOutput()">Copier</button>
+  </div>
+</div>
+
+<div id="tab-calculator" class="card" style="display:none">
+  <h2>Calculateur de tokens</h2>
+  <textarea id="calcInput" placeholder="Collez ou ecrivez votre texte ici..."></textarea>
+  <br><br>
+  <button class="btn btn-primary" onclick="calculate()">Calculer</button>
+  <div class="result" id="calcResult">
+    <div class="metrics">
+      <div class="metric"><div class="num" id="calcChars">0</div><div class="lbl">Caracteres</div></div>
+      <div class="metric"><div class="num" id="calcTokens">0</div><div class="lbl">Tokens estimes</div></div>
+      <div class="metric"><div class="num" id="calcCostIn">0€</div><div class="lbl">Cout input (3€/M)</div></div>
+      <div class="metric"><div class="num" id="calcCostOut">0€</div><div class="lbl">Cout output (15€/M)</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Prompt Coach v1.0 | Budget: 21€/mois | Modele: Claude Sonnet 4</div>
+
+<script>
+let totalUsed = 0;
+const budget = 21;
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.style.display = 'none');
+  if (tab === 'optimize') {
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.getElementById('tab-optimize').style.display = 'block';
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('tab-calculator').style.display = 'block';
+  }
+}
+
+function fillTemplate(type) {
+  const templates = {
+    dev: 'Creer une API REST avec [techno] pour [fonctionnalite]',
+    writing: 'Rediger un article sur [sujet] pour [public]',
+    analysis: 'Analyser les donnees de [source] pour [objectif]',
+    general: 'Tu es [role]. Explique-moi [sujet] de maniere [style]'
+  };
+  document.getElementById('promptInput').value = templates[type];
+}
+
+async function optimize() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+
+  const res = await fetch('/api/optimize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const data = await res.json();
+
+  document.getElementById('categoryTag').textContent = data.optimized.category;
+  document.getElementById('categoryTag').className = 'tag ' + data.optimized.category;
+  document.getElementById('savingsText').textContent = '-' + data.savings.percent + '% tokens';
+  document.getElementById('origTokens').textContent = data.original.tokens;
+  document.getElementById('optTokens').textContent = data.optimized.tokens;
+  document.getElementById('origCost').textContent = data.original.costInput + '€';
+  document.getElementById('savedCost').textContent = '-' + data.savings.tokens + ' tokens';
+  document.getElementById('optimizedOutput').textContent = data.optimized.text;
+  document.getElementById('optimizeResult').classList.add('show');
+
+  totalUsed += parseFloat(data.original.costInput) + parseFloat(data.original.costOutput);
+  updateBudget();
+}
+
+async function calculate() {
+  const text = document.getElementById('calcInput').value.trim();
+  if (!text) return;
+
+  const res = await fetch('/api/calculate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const data = await res.json();
+
+  document.getElementById('calcChars').textContent = data.chars;
+  document.getElementById('calcTokens').textContent = data.tokens;
+  document.getElementById('calcCostIn').textContent = data.costInput + '€';
+  document.getElementById('calcCostOut').textContent = data.costOutput + '€';
+  document.getElementById('calcResult').classList.add('show');
+
+  totalUsed += parseFloat(data.costInput) + parseFloat(data.costOutput);
+  updateBudget();
+}
+
+function updateBudget() {
+  const remain = Math.max(0, budget - totalUsed);
+  const pct = (totalUsed / budget) * 100;
+  document.getElementById('usedCost').textContent = totalUsed.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('remainCost').textContent = remain.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('progressFill').style.width = pct + '%';
+
+  const remainEl = document.getElementById('remainCost');
+  remainEl.className = 'value ' + (pct > 70 ? 'danger' : pct > 40 ? 'warn' : 'green');
+}
+
+function copyOutput() {
+  const text = document.getElementById('optimizedOutput').textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copie !';
+  setTimeout(() => btn.textContent = 'Copier', 1500);
+}
+</script>
+</body>
+</html>
